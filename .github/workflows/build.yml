@@ -1,0 +1,48 @@
+name: build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout source tree
+        uses: actions/checkout@v2
+      - name: prepare build environment
+        uses: nttld/setup-ndk@v1.0.2
+        id: setup-ndk
+        with:
+          ndk-version: r21e
+      - name: update NDK environment variable
+        run: echo "NDK=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
+      - name: clean output directories
+        run: ./build.sh clean
+        shell: bash
+      - name: build arm64 codec
+        if: success()
+        run: ./build.sh arm64
+        shell: bash
+      - name: build neon codec
+        if: success()
+        run: ./build.sh neon
+        shell: bash
+      - name: build x86_64 codec
+        if: success()
+        run: ./build.sh x86_64
+        shell: bash
+      - name: build x86 codec
+        if: success()
+        run: ./build.sh x86
+        shell: bash
+      - name: release artifacts
+        uses: softprops/action-gh-release@v1
+        if: success()
+        with:
+          files: output/*.zip
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
