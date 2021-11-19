@@ -4,9 +4,9 @@ SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd -P)"
 OUTPUT_DIR="${SCRIPT_DIR}/output"
 MX_FF_SRC_DIR="${SCRIPT_DIR}/src"
 
-VERSION="1.35.0"
-BUILD_NUMBER="213"
-MX_FF_SRC_URL="https://mxplayer.s3.amazonaws.com/open-source/ffmpeg/ffmpeg_1_35_0_build_213.7z"
+VERSION="1.41.2"
+BUILD_NUMBER="218"
+MX_FF_SRC_URL="https://mxplayer.s3.amazonaws.com/open-source/ffmpeg/ffmpeg_1_41_2_build_218.7z"
 
 die() {
 	echo -e "$*" >&2
