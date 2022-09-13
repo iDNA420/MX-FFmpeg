@@ -4,9 +4,9 @@ SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd -P)"
 OUTPUT_DIR="${SCRIPT_DIR}/output"
 MX_FF_SRC_DIR="${SCRIPT_DIR}/src"
 
-VERSION="1.41.2"
-BUILD_NUMBER="218"
-MX_FF_SRC_URL="https://mxplayer.s3.amazonaws.com/open-source/ffmpeg/ffmpeg_1_41_2_build_218.7z"
+VERSION="1.49.0"
+BUILD_NUMBER="0"
+MX_FF_SRC_URL="https://github.com/MXVideoPlayer/MX-FFmpeg/archive/refs/tags/v1.49.0.tar.gz"
 
 die() {
 	echo -e "$*" >&2
@@ -93,11 +93,12 @@ build_all() {
 
 [[ -d $NDK ]] || die "invalid NDK path! ($NDK)"
 
-execute curl -C- -LR "${MX_FF_SRC_URL}" -o "${SCRIPT_DIR}/ffmpeg_src.7z"
+execute curl -LR "${MX_FF_SRC_URL}" -o "${SCRIPT_DIR}/ffmpeg_src.tar.gz"
 [[ -d "${MX_FF_SRC_DIR}" ]] && execute rm -rfd "${MX_FF_SRC_DIR}"
-execute 7za x -y -o"${MX_FF_SRC_DIR}" "${SCRIPT_DIR}/ffmpeg_src.7z"
+execute mkdir -p "${MX_FF_SRC_DIR}"
+execute tar	--strip-components=1 -C "${MX_FF_SRC_DIR}" -xvzf "${SCRIPT_DIR}/ffmpeg_src.tar.gz"
 
-execute cd "${SCRIPT_DIR}/src/ffmpeg/JNI"
+cd "${MX_FF_SRC_DIR}/ffmpeg/JNI" || die "failed to switch to source directory"
 
 perl -i -pe 's/DISABLE_ILLEGAL_COMPONENTS=true/DISABLE_ILLEGAL_COMPONENTS=false/g' config-ffmpeg.sh
 perl -i -pe 's/#\!\/bin\/sh/#\!\/usr\/bin\/env bash/g' ffmpeg/configure #too many shift error may occur when the configure script is called on a posix compliant shell.
