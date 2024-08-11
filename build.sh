@@ -5,8 +5,8 @@ OUTPUT_DIR="${SCRIPT_DIR}/output"
 MX_FF_SRC_DIR="${SCRIPT_DIR}/src"
 
 VERSION="1.49.0"
-BUILD_NUMBER="0"
-MX_FF_SRC_URL="https://github.com/MXVideoPlayer/MX-FFmpeg/archive/refs/tags/v1.49.0.tar.gz"
+BUILD_NUMBER="2"
+MX_FF_SRC_URL="https://github.com/MXVideoPlayer/MX-FFmpeg/archive/refs/heads/main.tar.gz"
 
 die() {
 	echo -e "$*" >&2
