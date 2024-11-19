@@ -4,8 +4,8 @@ SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd -P)"
 OUTPUT_DIR="${SCRIPT_DIR}/output"
 MX_FF_SRC_DIR="${SCRIPT_DIR}/src"
 
-VERSION="1.49.0"
-BUILD_NUMBER="2"
+VERSION="1.87.0"
+BUILD_NUMBER="0"
 MX_FF_SRC_URL="https://github.com/MXVideoPlayer/MX-FFmpeg/archive/refs/heads/main.tar.gz"
 
 die() {
