@@ -74,9 +74,10 @@ build() {
 	if [[ ! -d "$TARGET" ]]; then
 		execute mkdir -p "$TARGET"
 	else
-		execute find "$TARGET" -name "libffmpeg*" -exec rm {} +
+		execute find "$TARGET" \( -iname "*.so" -or -iname "*.a" \) -not -iname "libmx*.so" -exec rm {} +
 	fi
 
+	log "========== building codec for $i =========="
 	execute "${PWD}/build-libmp3lame.sh" "$1"
 	execute "${PWD}/build-openssl.sh" "$1"
 	execute "${PWD}/build-libsmb2.sh" "$1"
@@ -100,22 +101,24 @@ build() {
 
 build_all() {
 	for i in arm64 neon x86 x86_64; do
-		log "========== building codec for $i =========="
 		build "$i"
 	done
 }
 
-execute curl -LR "${MX_FF_SRC_URL}" -o "${SCRIPT_DIR}/ffmpeg_src.tar.gz"
-[[ -d "${MX_FF_SRC_DIR}" ]] && execute rm -rfd "${MX_FF_SRC_DIR}"
-execute mkdir -p "${MX_FF_SRC_DIR}"
-execute tar --strip-components=1 -C "${MX_FF_SRC_DIR}" -xvzf "${SCRIPT_DIR}/ffmpeg_src.tar.gz"
+if [[ -z $GITHUB_ACTIONS ]]; then
+	execute curl -#LR "${MX_FF_SRC_URL}" -o "${SCRIPT_DIR}/ffmpeg_src.tar.gz"
+	[[ -d "${MX_FF_SRC_DIR}" ]] && execute rm -rfd "${MX_FF_SRC_DIR}"
+	execute mkdir -p "${MX_FF_SRC_DIR}"
+	execute tar --strip-components=1 -C "${MX_FF_SRC_DIR}" -xzf "${SCRIPT_DIR}/ffmpeg_src.tar.gz"
+else
+	execute git -C "${MX_FF_SRC_DIR}" clean -ffdx
+	execute git -C "${MX_FF_SRC_DIR}" reset --hard HEAD
+fi
 
 cd "${BUILD_ROOT}" || die "failed to switch to source directory"
 
-perl -i -pe 's/FF_FEATURES\+=\$FF_FEATURE_DEMUXER/# FF_FEATURES\+=\$FF_FEATURE_DEMUXER/g' config-ffmpeg.sh
-perl -i -pe 's/FF_FEATURES\+=\$FF_FEATURE_DECODER/# FF_FEATURES\+=\$FF_FEATURE_DECODER/g' config-ffmpeg.sh
-perl -i -pe 's/FF_FEATURES\+=\$FF_FEATURE_MISC/# FF_FEATURES\+=\$FF_FEATURE_MISC/g' config-ffmpeg.sh
-perl -i -pe 's/#\!\/bin\/sh/#\!\/usr\/bin\/env bash/g' ffmpeg/configure #too many shift error may occur when the configure script is called on a posix compliant shell.
+perl -i -pe 's/(FF_FEATURES\+=\$FF_FEATURE_(DEMUXER|DECODER|MISC))/# $1/g' config-ffmpeg.sh
+perl -i -pe 's/#\!\/bin\/sh/#\!\/usr\/bin\/env bash/g' ffmpeg/configure # too many shift error may occur when the configure script is called on a posix compliant shell.
 
 if [[ -z "$1" ]]; then
 	clean "${OUTPUT_DIR}"
@@ -130,7 +133,6 @@ else
 		clean "${OUTPUT_DIR}"
 		;;
 	*)
-		log "========== building codec for $1 =========="
 		build "$1"
 		;;
 	esac

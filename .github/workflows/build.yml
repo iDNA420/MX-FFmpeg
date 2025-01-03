@@ -15,8 +15,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: checkout source tree
+      - name: checkout tools repo
         uses: actions/checkout@v4
+      - name: checkout MXPlayer repo
+        uses: actions/checkout@v4
+        with:
+          repository: MXVideoPlayer/MX-FFmpeg
+          path: src
       - name: install build tools
         run: sudo apt update && sudo apt install -y nasm meson ninja-build
       - name: setting up NDK
