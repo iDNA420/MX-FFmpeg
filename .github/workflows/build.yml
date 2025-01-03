@@ -11,14 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout source tree
-        uses: actions/checkout@v2
-      - name: prepare build environment
-        uses: nttld/setup-ndk@v1.0.2
+        uses: actions/checkout@v4
+      - name: install build tools
+        run: sudo apt update && sudo apt install -y nasm meson ninja-build
+      - name: setting up NDK
+        uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
-          ndk-version: r21e
-      - name: update NDK environment variable
-        run: echo "NDK=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
+          ndk-version: r27c
       - name: clean output directories
         run: ./build.sh clean
         shell: bash
