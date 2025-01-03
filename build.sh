@@ -32,16 +32,6 @@ if [[ ! -d "$NDK" ]]; then
 	fi
 fi
 
-clean() {
-	[[ -z "$1" ]] && die "invalid usage! please specify output directory"
-
-	if [[ ! -d "$1" ]]; then
-		execute mkdir -p "$1"
-	else
-		execute rm -vrf "$1/"*
-	fi
-}
-
 build() {
 	[[ -z "$1" ]] && die "invalid usage! please specify cpu arch."
 	case "${1}" in
@@ -77,7 +67,7 @@ build() {
 		execute find "$TARGET" \( -iname "*.so" -or -iname "*.a" \) -not -iname "libmx*.so" -exec rm {} +
 	fi
 
-	log "========== building codec for $i =========="
+	log "========== building codec for $1 =========="
 	execute "${PWD}/build-libmp3lame.sh" "$1"
 	execute "${PWD}/build-openssl.sh" "$1"
 	execute "${PWD}/build-libsmb2.sh" "$1"
@@ -91,6 +81,7 @@ build() {
 	fi
 
 	if [[ -f "$TARGET_LIB_NAME" ]]; then
+		execute mkdir -p "$OUTPUT_DIR"
 		execute zip -qj9 "$TARGET_ARCHIVE_NAME" "$TARGET_LIB_NAME"
 		execute zip -qj9 "$TARGET_AIO_ARCHIVE_NAME" "$TARGET_LIB_NAME"
 		execute rm -f "$TARGET_LIB_NAME"
@@ -99,41 +90,58 @@ build() {
 	fi
 }
 
-build_all() {
-	for i in arm64 neon x86 x86_64; do
-		build "$i"
-	done
-}
-
 if [[ -z $GITHUB_ACTIONS ]]; then
-	execute curl -#LR "${MX_FF_SRC_URL}" -o "${SCRIPT_DIR}/ffmpeg_src.tar.gz"
-	[[ -d "${MX_FF_SRC_DIR}" ]] && execute rm -rfd "${MX_FF_SRC_DIR}"
-	execute mkdir -p "${MX_FF_SRC_DIR}"
-	execute tar --strip-components=1 -C "${MX_FF_SRC_DIR}" -xzf "${SCRIPT_DIR}/ffmpeg_src.tar.gz"
+	[[ -d "$MX_FF_SRC_DIR" ]] && execute rm -rfd "$MX_FF_SRC_DIR"
+	execute mkdir -p "$MX_FF_SRC_DIR"
+	execute curl -#LR "$MX_FF_SRC_URL" -o "${SCRIPT_DIR}/ffmpeg_src.tar.gz"
+	execute tar --strip-components=1 -C "$MX_FF_SRC_DIR" -xzf "${SCRIPT_DIR}/ffmpeg_src.tar.gz"
+	# execute git clone "https://github.com/MXVideoPlayer/MX-FFmpeg.git" src
 else
-	execute git -C "${MX_FF_SRC_DIR}" clean -ffdx
-	execute git -C "${MX_FF_SRC_DIR}" reset --hard HEAD
+	execute git -C "$MX_FF_SRC_DIR" clean -ffdx
+	execute git -C "$MX_FF_SRC_DIR" reset --hard HEAD
 fi
 
-cd "${BUILD_ROOT}" || die "failed to switch to source directory"
+cd "$BUILD_ROOT" || die "failed to switch to source directory"
 
+log "update config files"
+echo "$PWD"
 perl -i -pe 's/(FF_FEATURES\+=\$FF_FEATURE_(DEMUXER|DECODER|MISC))/# $1/g' config-ffmpeg.sh
 perl -i -pe 's/#\!\/bin\/sh/#\!\/usr\/bin\/env bash/g' ffmpeg/configure # too many shift error may occur when the configure script is called on a posix compliant shell.
 
-if [[ -z "$1" ]]; then
-	clean "${OUTPUT_DIR}"
-	build_all
-else
+CLEAN="false"
+BUILD_ALL="false"
+ARCH=()
+
+while [ "$#" -gt 0 ]; do
 	case "$1" in
-	all)
-		clean "${OUTPUT_DIR}"
-		build_all
+	--clean)
+		CLEAN=true
 		;;
-	clean)
-		clean "${OUTPUT_DIR}"
+	--arm64 | --neon | --x86_64 | --x86)
+		if [[ "$BUILD_ALL" != true ]]; then
+			ARCH+=("${1#--}")
+		fi
+		;;
+	--all)
+		BUILD_ALL="true"
+		ARCH=("arm64" "neon" "x86_64" "x86")
 		;;
 	*)
-		build "$1"
+		die "unknown arg: $1"
 		;;
 	esac
+	shift 1
+done
+
+if [[ $CLEAN == "true" ]] && [[ -d "$OUTPUT_DIR" ]]; then
+	execute rm -vrf "${OUTPUT_DIR}/"*
 fi
+
+if [[ -z "${ARCH[*]}" ]]; then
+	warn "no arch specified. building all!"
+	ARCH=("arm64" "neon" "x86_64" "x86")
+fi
+
+for arch in "${ARCH[@]}"; do
+	build "$arch"
+done
