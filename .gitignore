@@ -53,3 +53,5 @@ libffmpeg.mx.so.*
 
 # Compiled Static libraries
 *.lai
+
+src/*

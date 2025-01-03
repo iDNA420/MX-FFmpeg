@@ -3,9 +3,10 @@
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd -P)"
 OUTPUT_DIR="${SCRIPT_DIR}/output"
 MX_FF_SRC_DIR="${SCRIPT_DIR}/src"
+BUILD_ROOT="${MX_FF_SRC_DIR}/jni"
 
-VERSION="1.87.0"
-BUILD_NUMBER="0"
+VERSION=${VERSION:="1.87.0"}
+BUILD_NUMBER="2"
 MX_FF_SRC_URL="https://github.com/MXVideoPlayer/MX-FFmpeg/archive/refs/heads/main.tar.gz"
 
 die() {
@@ -20,6 +21,16 @@ execute() {
 	"$@" || die "failed to execute $*"
 	log ""
 }
+
+if [[ ! -d "$NDK" ]]; then
+	NDK_BUILD_PATH="$(which ndk-build)"
+	if [[ -n "$NDK_BUILD_PATH" ]]; then
+		export NDK=$(dirname "$NDK_BUILD_PATH")
+		warn "NDK location auto-detected! path: $NDK"
+	else
+		die "Unable to detect NDK!!"
+	fi
+fi
 
 clean() {
 	[[ -z "$1" ]] && die "invalid usage! please specify output directory"
@@ -36,19 +47,19 @@ build() {
 	case "${1}" in
 	arm64)
 		ARCH_NAME="neon64"
-		TARGET="${MX_FF_SRC_DIR}/ffmpeg/JNI/libs/arm64-v8a"
+		TARGET="${BUILD_ROOT}/libs/arm64-v8a"
 		;;
 	neon)
 		ARCH_NAME="neon"
-		TARGET="${MX_FF_SRC_DIR}/ffmpeg/JNI/libs/armeabi-v7a/neon"
+		TARGET="${BUILD_ROOT}/libs/armeabi-v7a/neon"
 		;;
 	x86)
 		ARCH_NAME="x86"
-		TARGET="${MX_FF_SRC_DIR}/ffmpeg/JNI/libs/x86"
+		TARGET="${BUILD_ROOT}/libs/x86"
 		;;
 	x86_64)
 		ARCH_NAME="x86_64"
-		TARGET="${MX_FF_SRC_DIR}/ffmpeg/JNI/libs/x86_64"
+		TARGET="${BUILD_ROOT}/libs/x86_64"
 		;;
 	*)
 		die "unknown arch: $1"
@@ -66,7 +77,10 @@ build() {
 		execute find "$TARGET" -name "libffmpeg*" -exec rm {} +
 	fi
 
+	execute "${PWD}/build-libmp3lame.sh" "$1"
 	execute "${PWD}/build-openssl.sh" "$1"
+	execute "${PWD}/build-libsmb2.sh" "$1"
+	execute "${PWD}/build-libdav1d.sh" "$1"
 	execute "${PWD}/build-ffmpeg.sh" "$1"
 
 	if [[ -f "$LIB_NAME" ]]; then
@@ -91,16 +105,16 @@ build_all() {
 	done
 }
 
-[[ -d $NDK ]] || die "invalid NDK path! ($NDK)"
-
 execute curl -LR "${MX_FF_SRC_URL}" -o "${SCRIPT_DIR}/ffmpeg_src.tar.gz"
 [[ -d "${MX_FF_SRC_DIR}" ]] && execute rm -rfd "${MX_FF_SRC_DIR}"
 execute mkdir -p "${MX_FF_SRC_DIR}"
-execute tar	--strip-components=1 -C "${MX_FF_SRC_DIR}" -xvzf "${SCRIPT_DIR}/ffmpeg_src.tar.gz"
+execute tar --strip-components=1 -C "${MX_FF_SRC_DIR}" -xvzf "${SCRIPT_DIR}/ffmpeg_src.tar.gz"
 
-cd "${MX_FF_SRC_DIR}/ffmpeg/JNI" || die "failed to switch to source directory"
+cd "${BUILD_ROOT}" || die "failed to switch to source directory"
 
-perl -i -pe 's/DISABLE_ILLEGAL_COMPONENTS=true/DISABLE_ILLEGAL_COMPONENTS=false/g' config-ffmpeg.sh
+perl -i -pe 's/FF_FEATURES\+=\$FF_FEATURE_DEMUXER/# FF_FEATURES\+=\$FF_FEATURE_DEMUXER/g' config-ffmpeg.sh
+perl -i -pe 's/FF_FEATURES\+=\$FF_FEATURE_DECODER/# FF_FEATURES\+=\$FF_FEATURE_DECODER/g' config-ffmpeg.sh
+perl -i -pe 's/FF_FEATURES\+=\$FF_FEATURE_MISC/# FF_FEATURES\+=\$FF_FEATURE_MISC/g' config-ffmpeg.sh
 perl -i -pe 's/#\!\/bin\/sh/#\!\/usr\/bin\/env bash/g' ffmpeg/configure #too many shift error may occur when the configure script is called on a posix compliant shell.
 
 if [[ -z "$1" ]]; then
