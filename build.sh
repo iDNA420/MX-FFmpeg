@@ -6,8 +6,9 @@ MX_FF_SRC_DIR="${SCRIPT_DIR}/src"
 BUILD_ROOT="${MX_FF_SRC_DIR}/jni"
 
 VERSION=${VERSION:="1.87.0"}
-BUILD_NUMBER="2"
-MX_FF_SRC_URL="https://github.com/MXVideoPlayer/MX-FFmpeg/archive/refs/heads/main.tar.gz"
+BUILD_NUMBER="4"
+MX_FF_SRC_URL="https://amazon-source-code-downloads.s3.us-east-1.amazonaws.com/MXPlayer/client/mxplayer-v1.90.1-ffmpeg-v4.2-src.tar.gz"
+SRC_FILENAME="ffmpeg-src.tar.gz"
 
 die() {
 	echo -e "$*" >&2
@@ -72,7 +73,8 @@ build() {
 	execute "${PWD}/build-openssl.sh" "$1"
 	execute "${PWD}/build-libsmb2.sh" "$1"
 	execute "${PWD}/build-libdav1d.sh" "$1"
-	execute "${PWD}/build-ffmpeg.sh" "$1"
+	execute "${PWD}/build.sh" mxutil release build "$1"
+	execute "${PWD}/build-ffmpeg.sh" "$1" | tee build-ffmpeg.log
 
 	if [[ -f "$LIB_NAME" ]]; then
 		execute mv "$LIB_NAME" "$TARGET_LIB_NAME"
@@ -90,22 +92,17 @@ build() {
 	fi
 }
 
-if [[ -z $GITHUB_ACTIONS ]]; then
-	[[ -d "$MX_FF_SRC_DIR" ]] && execute rm -rfd "$MX_FF_SRC_DIR"
-	execute mkdir -p "$MX_FF_SRC_DIR"
-	execute curl -#LR "$MX_FF_SRC_URL" -o "${SCRIPT_DIR}/ffmpeg_src.tar.gz"
-	execute tar --strip-components=1 -C "$MX_FF_SRC_DIR" -xzf "${SCRIPT_DIR}/ffmpeg_src.tar.gz"
-	# execute git clone "https://github.com/MXVideoPlayer/MX-FFmpeg.git" src
-else
-	execute git -C "$MX_FF_SRC_DIR" clean -ffdx
-	execute git -C "$MX_FF_SRC_DIR" reset --hard HEAD
-fi
+[[ -d "$MX_FF_SRC_DIR" ]] && execute rm -rfd "$MX_FF_SRC_DIR"
+execute mkdir -p "$MX_FF_SRC_DIR"
+execute curl -#LR -C - "$MX_FF_SRC_URL" -o "${SCRIPT_DIR}/${SRC_FILENAME}"
+execute tar --strip-components=1 -C "$MX_FF_SRC_DIR" -xzf "${SCRIPT_DIR}/${SRC_FILENAME}"
 
 cd "$BUILD_ROOT" || die "failed to switch to source directory"
 
 log "update config files"
 echo "$PWD"
-perl -i -pe 's/(FF_FEATURES\+=\$FF_FEATURE_(DEMUXER|DECODER|MISC))/# $1/g' config-ffmpeg.sh
+# perl -i -pe 's/(FF_FEATURES\+=\$FF_FEATURE_(DEMUXER|DECODER|MISC))/# $1/g' config-ffmpeg.sh
+perl -i -pe 's/ENABLE_ALL_DEMUXER_DECODER=false/ENABLE_ALL_DEMUXER_DECODER=true/g' config-ffmpeg.sh
 perl -i -pe 's/#\!\/bin\/sh/#\!\/usr\/bin\/env bash/g' ffmpeg/configure # too many shift error may occur when the configure script is called on a posix compliant shell.
 
 CLEAN="false"
